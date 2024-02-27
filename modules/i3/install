@@ -1,0 +1,80 @@
+#!/bin/bash
+
+function	install::i3::package()
+{
+	declare -la to_install
+
+	if [ ! "$(type -P i3)" ]; then
+		to_install+=("i3-wm")
+	fi
+
+	for package in ${I3_PACKAGE_PAC[@]}; do
+		if [ ! "$(type -P ${package})" ]; then
+			to_install+=("${package}")
+		fi
+	done
+	sudo pacman -Suy --noconfirm ${to_install[@]}
+	to_install=()
+	for package in ${I3_PACKAGE_YAY[@]}; do
+		if [ ! "$(type -P ${package})" ]; then
+			to_install+=("${package}")
+		fi
+	done
+	yay -Suy --noconfirm ${to_install[@]}
+}
+
+function	install::i3::config()
+{
+	utils::move_dir "${MOD_FILE_DIR}/i3" "${TARGET_DIR}" y
+	utils::move_dir "${MOD_FILE_DIR}/polybar" "${DOT_CONFIG_DIR}/polybar" y
+	utils::move_file "${MOD_FILE_DIR}/termite/config" "${DOT_CONFIG_DIR}/termite/config"
+	utils::move_file "${MOD_FILE_DIR}/i3status/config" "${DOT_CONFIG_DIR}/i3status/config"
+	utils::move_file "${MOD_FILE_DIR}/picom/picom.conf" "${DOT_CONFIG_DIR}/picom/picom.conf"
+}
+
+function	install::i3::enable_dm()
+{
+	systemctl --no-pager status ly
+	if [ "${?}" == "4" ]; then
+		sudo cp -f "${MOD_FILE_DIR}/ly/ly.service" "/usr/lib/systemd/system/ly.service"
+		sudo cp -f "${MOD_FILE_DIR}/ly/config.ini" "/etc/ly/config.ini"
+		sudo systemctl enable --now ly
+		sudo systemctl daemon-reload
+	fi
+}
+
+## BINDED FUNCTION
+
+function	pre::install::i3()
+{
+	utils::mkdir "${TARGET_DIR}"
+}
+
+function	install::i3()
+{
+	install::i3::package
+	install::i3::enable_dm
+	install::i3::config
+}
+
+# Start
+function	module::start()
+{
+	local	base="${BASH_SOURCE[0]?}"
+
+	# remove filename
+	base="${base/install/}"
+	# if base dir is relative, suffix PWD to base
+	if [[ ${base} =~ ^\./.*$ ]]; then
+		base="${PWD}/${base}"
+	fi
+	# if not sourced, BASH_SOURCE keep current file when $0 keep launched file
+	if [ "${BASH_SOURCE[0]}" -ef "${0}" ]; then
+		source "${base}../../dot"
+		source "${base}${MOD_CONFIG_FILE}"
+		## BINDED FUNCTION
+		module::install "${MOD_NAME}"
+	fi
+}
+
+module::start

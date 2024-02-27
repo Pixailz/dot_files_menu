@@ -1,0 +1,71 @@
+general {
+	colors = true
+	interval = 5
+}
+
+order += "path_exists VPN"
+order += "wireless _first_"
+order += "ethernet _first_"
+order += "battery 0"
+order += "disk /"
+order += "cpu_usage"
+order += "memory"
+order += "volume master"
+order += "read_file uptime"
+order += "time"
+
+path_exists VPN {
+	path = "/proc/sys/net/ipv4/conf/tun0"
+	format = "%title: %status"
+	format_down = "VPN ❌"
+}
+
+wireless _first_ {
+	format_up = "🛜 %ip %quality"
+	format_down = "🛜 ❌"
+}
+
+ethernet _first_ {
+	format_up = "🔌 %ip %speed"
+	format_down = "🔌 ❌"
+}
+
+battery 0 {
+	format = "%status %percentage %remaining "
+	format_down = "No battery"
+	status_chr = "⚡"
+	status_bat = "🔋"
+	status_unk = "?"
+	status_full = "👌"
+	path = "/sys/class/power_supply/BAT%d/uevent"
+	low_threshold = 10
+}
+
+disk "/" {
+	format = "💾(/): %percentage_avail"
+	low_threshold = 5
+	format_below_threshold = "⚠️💾(/): %percentage_avail"
+}
+
+cpu_usage {
+	format = "🧠 %usage"
+}
+
+memory {
+	format = "R %free"
+	threshold_degraded = "10%"
+	format_degraded = "⚠️R %free"
+}
+
+volume master {
+	format = "🔊: %volume"
+	format_muted = "🔇"
+}
+
+read_file uptime {
+	path = "/proc/uptime"
+}
+
+time {
+	format = "%d-%m-%Y %H:%M:%S"
+}

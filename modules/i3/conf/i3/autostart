@@ -1,0 +1,16 @@
+# assign [class="Termite"] $ws1
+assign [class="Google-chrome"] $ws2
+assign [class="Code"] $ws3
+
+exec --no-startup-id /usr/bin/termite
+exec --no-startup-id /usr/bin/google-chrome-stable
+exec --no-startup-id /usr/bin/code
+
+# Pulseaudio-alsa systray
+exec pasystray
+# Pulseaudio-alsa systray
+exec iwgtk
+# WM compositor
+exec_always picom --backend glx -b
+# Background
+exec_always feh --bg-fill "${HOME}/Pictures/selected_wallpaper"

@@ -1,0 +1,43 @@
+#!/bin/bash
+
+## BINDED FUNCTION
+
+function	pre::install::ssh()
+{
+	utils::mkdir "${TARGET_DIR}"
+	chmod 755 "${TARGET_DIR}"
+}
+
+function	create_key()
+{
+	local	key_path="${TARGET_DIR}/${1}"
+
+	[ ! -f "${key_path}" ] && ssh-keygen -t "${KEY_ALGO}" -f "${key_path}"
+}
+
+function	install::ssh()
+{
+	create_key "git"
+}
+
+# Start
+function	module::start()
+{
+	local	base="${BASH_SOURCE[0]?}"
+
+	# remove filename
+	base="${base/install/}"
+	# if base dir is relative, suffix PWD to base
+	if [[ ${base} =~ ^\./.*$ ]]; then
+		base="${PWD}/${base}"
+	fi
+	# if not sourced, BASH_SOURCE keep current file when $0 keep launched file
+	if [ "${BASH_SOURCE[0]}" -ef "${0}" ]; then
+		source "${base}../../dot"
+
+		## BINDED FUNCTION
+		module::install "${MOD_NAME}"
+	fi
+}
+
+module::start

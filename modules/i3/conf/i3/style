@@ -1,0 +1,55 @@
+font pango: $font-style
+
+default_border pixel 1px
+default_floating_border pixel 1px
+hide_edge_borders smart
+
+# POLYBAR
+# gaps top 30px
+
+gaps inner 2px
+gaps outer 1px
+
+smart_gaps on
+
+set $green_1		#5a994c
+set $green_2		#287739
+set $green_3		#5f6a61
+set $green_4		#48504a
+set $green_5		#292e2b
+set $green_6		#2f3a31
+set $green_7		#50994c
+set $green			#2ef42e
+set $dark_red		#900000
+set $white			#ffffff
+set $black			#000000
+set $grey			#333333
+
+# class					border		background	text	indicator	child_border
+
+client.focused			$green_1	$green_2	$white	$green		$green_2
+client.focused_inactive	$grey		$green_3	$white	$green_4	$green_3
+client.unfocused		$grey		#222222		#888888	$green_5	#222222
+client.urgent			$green_6	$dark_red	$white	$dark_red	$dark_red
+client.placeholder		$black		#0c0c0c		$white	$black		#0c0c0c
+client.background		$white
+
+# bar {
+# 	# mode hide
+# 	# hidden_state hide
+# 	# modifier Mod1+Mod4
+# 	position top
+# 	separator_symbol "|"
+# 	status_command i3status
+# 	colors {
+# 		background			$grey
+
+# 		focused_workspace	$green_7	$green_2	$white
+# 		active_workspace	$grey		$green_3	$white
+# 		inactive_workspace	$grey		#222222		#888888
+# 		urgent_workspace	$green_6	$dark_red	$white
+# 		binding_mode		$green_6	$dark_red	$white
+# 	}
+# }
+
+exec_always --no-startup-id $HOME/.config/polybar/launch.sh

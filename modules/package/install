@@ -1,0 +1,176 @@
+#!/bin/bash
+
+
+function	install::uni::pip3()
+{
+	dry::run pip install --upgrade --break-system-packages pip setuptools
+	dry::run pip install --upgrade --break-system-packages pwn
+}
+
+function	install::unit::script()
+{
+	local	link="${1?}"
+
+	curl::wrap "${link}" ./tmp.sh
+	dry::run chmod +x ./tmp.sh
+	dry::run ./tmp.sh
+	dry::run rm -rf ./tmp.sh
+}
+
+function	install::uni::with_link()
+{
+	if [ ! -f "${HOME}/.gdbinit-gef.py" ]; then
+		log::info "Installing GEF" 1
+		curl::wrap "${UNI_LINK["gef"]}" "${HOME}/.gdbinit-gef.py"
+		dry::run echo source ~/.gdbinit-gef.py >> ~/.gdbinit
+	fi
+	if [ ! -d /usr/share/wordlists ]; then
+		log::info "/usr/share/wordlists not found, donwloading SecList" 1
+		sudo git clone "${SECLISTS}" /usr/share/wordlists
+	fi
+}
+
+function	install::deb::add_deb()
+{
+	local	target="${1?}"
+
+	if [ "$(is::installed ${target})" == 0 ]; then
+		log::info "Downloading ${target}" 1
+		curl::wrap "${DEB_LINK[${target}]}" "${target}.deb"
+		to_install+=("${target}.deb")
+	fi
+}
+
+function	install::deb::with_link()
+{
+	if [ ! -f "${HOME}/BurpSuiteCommunity/BurpSuiteCommunity" ]; then
+		log::info "Installing BurpSuite" 1
+		install::unit::script "${UNI_LINK["burpsuite"]}"
+	fi
+	unset to_install
+	declare -ga	to_install=()
+
+	install::deb::add_deb google-chrome
+	install::deb::add_deb code
+	install::deb::add_deb java
+	install::deb::add_deb delta
+
+	if [ "${#to_install[@]}" == "0" ]; then
+		log::info "Nothing to install" 1
+	else
+		log::info "Installing (apt:link)" 1
+		printf -- "- %s\n" ${to_install[@]}
+		pkg::update
+		pkg::install ${to_install[@]}
+	fi
+
+	unset to_install
+}
+
+function	install::uni()
+{
+	install::uni::pip3
+	install::uni::with_link
+}
+
+function	clean::package()
+{
+	declare	-a packages=(${@?})
+	unset PARSED_PACK
+	declare	-ag PARSED_PACK=()
+
+	for package in ${packages[@]}; do
+		[ "$(is::installed ${package})" == 0 ] && PARSED_PACK+=(${package})
+	done
+}
+
+function	install::deb()
+{
+	clean::package ${DEB_PACK[@]}
+	if [ "${#PARSED_PACK[@]}" == "0" ]; then
+		log::info "Nothing to install" 1
+	else
+		log::info "Installing (apt:name)" 1
+		printf -- "- %s\n" ${PARSED_PACK[@]}
+		pkg::update
+		pkg::install ${PARSED_PACK[@]}
+	fi
+	install::deb::with_link
+}
+
+function	configure::pacman()
+{
+	local	target="${1:-/etc/pacman.conf}"
+
+	# activate parallel downloads
+	sudo sed -i 's/#ParallelDownloads.*/ParallelDownloads = 3/g' "${target}"
+	# activate color
+	sudo sed -i "s/#Color/Color/" "${target}"
+	# best option ever
+	sudo sed -i "38 i ILoveCandy" "${target}"
+}
+
+function	install::arch()
+{
+	clean::package ${ARCH_PAC_PACK[@]}
+	configure::pacman
+	if [ "${#PARSED_PACK[@]}" == "0" ]; then
+		log::info "Nothing to install" 1
+	else
+		log::info "Installing (pac)" 1
+		printf -- "- %s\n" ${PARSED_PACK[@]}
+		pkg::update
+		pkg::install ${PARSED_PACK[@]}
+	fi
+	if [ "$(is::installed yay)" == 0 ]; then
+		dry::run git clone https://aur.archlinux.org/yay /tmp/yay
+		dry::run cd /tmp/yay
+		dry::run makepkg -si --noconfirm
+		dry::run cd -
+		dry::run rm -rf /tmp/yay
+	fi
+	clean::package ${ARCH_YAY_PACK[@]}
+	if [ "${#PARSED_PACK[@]}" == "0" ]; then
+		log::info "Nothing to install" 1
+	else
+		log::info "Installing (yay)" 1
+		printf -- "- %s\n" ${PARSED_PACK[@]}
+		dry::run yay -Syu --noconfirm ${PARSED_PACK[@]}
+	fi
+}
+
+## BINDED FUNCTION
+
+function	install::package()
+{
+	case ${OS_ID} in
+		ubuntu|kali|debian)
+			install::uni
+			install::deb
+			;;
+		"arch") install::arch ;;
+		*) print::warn "Not supported yet."
+	esac
+}
+
+# Start
+function	module::start()
+{
+	local	base="${BASH_SOURCE[0]?}"
+
+	# remove filename
+	base="${base/install/}"
+	# if base dir is relative, suffix PWD to base
+	if [[ ${base} =~ ^\./.*$ ]]; then
+		base="${PWD}/${base}"
+	fi
+	# if not sourced, BASH_SOURCE keep current file when $0 keep launched file
+	if [ "${BASH_SOURCE[0]}" -ef "${0}" ]; then
+		source "${base}../../dot"
+		source "${base}${MOD_CONFIG_FILE}"
+		## BINDED FUNCTION
+		module::install "${MOD_NAME}"
+	fi
+}
+
+module::start

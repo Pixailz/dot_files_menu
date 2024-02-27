@@ -1,0 +1,35 @@
+#!/bin/bash
+
+## BINDED FUNCTION
+
+function	pre::install::htop()
+{
+	utils::mkdir "${TARGET_DIR}"
+}
+
+function	install::htop()
+{
+	utils::move_dir "${MOD_FILE_DIR}" "${TARGET_DIR}" y
+}
+
+# Start
+function	module::start()
+{
+	local	base="${BASH_SOURCE[0]?}"
+
+	# remove filename
+	base="${base/install/}"
+	# if base dir is relative, suffix PWD to base
+	if [[ ${base} =~ ^\./.*$ ]]; then
+		base="${PWD}/${base}"
+	fi
+	# if not sourced, BASH_SOURCE keep current file when $0 keep launched file
+	if [ "${BASH_SOURCE[0]}" -ef "${0}" ]; then
+		source "${base}../../dot"
+		source "${base}${MOD_CONFIG_FILE}"
+		## BINDED FUNCTION
+		module::install "${MOD_NAME}"
+	fi
+}
+
+module::start

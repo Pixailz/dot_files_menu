@@ -1,0 +1,30 @@
+[core]
+	pager = delta
+	editor = vim
+
+[interactive]
+	diffFilter = delta --color-only
+
+[delta]
+	navigate = true
+	light = false
+
+[merge]
+	conflicstule = diff3
+
+[pull]
+	rebase = true
+
+[diff]
+	colorMoved = default
+
+[user]
+	name = Pixailz
+	email = Pixailz1@gmail.com
+	signingkey = ~/.ssh/git
+
+[gpg]
+	format = ssh
+
+[commit]
+	gpgsign = true

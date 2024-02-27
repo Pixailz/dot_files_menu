@@ -1,0 +1,8 @@
+#!/bin/bash
+
+NB_MONITOR="$(xrandr --query | grep -E "[0-9]+ connected" | wc -l)"
+
+case "${NB_MONITOR:-1}" in
+	1) "${HOME}/.screenlayout/one_disp.sh" ;;
+	2) "${HOME}/.screenlayout/two_disp.sh" ;;
+esac

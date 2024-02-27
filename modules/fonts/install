@@ -1,0 +1,102 @@
+#!/bin/bash
+
+function	install::font()
+{
+	local	font_name="${1?}"
+	local	font_link="${2?}"
+	local	dir_font
+
+	dir_font="${DIR_FONT}/${font_name}"
+	if [ ! -d "${dir_font}" ]; then
+		log::info "installing ${ORE}${font_name}${RST}" 1
+		curl::wrap "${font_link}" tmp.zip
+		utils::mkdir "${dir_font}"
+		unzip -o tmp.zip -d "${dir_font}"
+		rm -f tmp.zip
+		log::pass "installed ${GRE}${dir_font}${RST}"
+		FONT_CHANGED=1
+	else
+		log::info "${font_name} already installed" 1
+	fi
+}
+
+## BINDED FUNCTION
+
+function	pre::install::fonts()
+{
+	case ${OS_ID} in
+		termux) 			DIR_FONT="${HOME}/.termux"					;;
+		ubuntu|kali|debian|arch)	DIR_FONT="${HOME}/.local/share/fonts"	;;
+	esac
+	if [ "$(is::installed unzip)" == 0 ]; then
+		NO_UNZIP=1
+		log::warn "unzip isn't installed, installing it"
+		case ${OD_ID} in
+			ubuntu|kali|debian)
+				sudo apt install -Y unzip
+			;;
+			"arch")
+				sudo pacman -Syu --noconfirm unzip
+			;;
+		esac
+		if [ ${?} == 0 ]; then
+			NO_UNZIP=0;
+		fi
+	fi
+
+	if [ "${NO_UNZIP}" == "1" ]; then
+		log::fail "unzip is not installed"
+	else
+		log::pass "unzip installed"
+	fi
+	export DIR_FONT
+	export FONT_CHANGED=0
+}
+
+function	install::fonts()
+{
+	[ "${NO_UNZIP}" == "1" ] && return
+	for font_name in ${!FONTS_LINK[@]}; do
+		install::font "${font_name}" "${FONTS_LINK[${font_name}]}"
+	done
+	log::info "you can select your font in the terminal settings" 1
+}
+
+function	post::install::fonts()
+{
+	[ -f tmp.zip ] && rm -f tmp.zip
+	if [ "${FONT_CHANGED}" == "1" ]; then
+		case ${OS_ID} in
+			"termux")
+				termux-reload-settings
+			;;
+			*)
+				fc-cache -vr
+			;;
+		esac
+	fi
+	unset DIR_FONT
+	unset NO_UNZIP
+}
+
+# Start
+function	module::start()
+{
+	local	base="${BASH_SOURCE[0]?}"
+
+	# remove filename
+	base="${base/install/}"
+	# if base dir is relative, suffix PWD to base
+	if [[ ${base} =~ ^\./.*$ ]]; then
+		base="${PWD}/${base}"
+	fi
+	# if not sourced, BASH_SOURCE keep current file when $0 keep launched file
+	if [ "${BASH_SOURCE[0]}" -ef "${0}" ]; then
+		source "${base}../../dot"
+		source "${base}${MOD_CONFIG_FILE}"
+		## BINDED FUNCTION
+		module::install "${MOD_NAME}"
+	fi
+}
+
+module::start

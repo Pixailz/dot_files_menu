@@ -1,0 +1,39 @@
+#!/bin/bash
+
+## BINDED FUNCTION
+
+function	pre::install::wallpaper()
+{
+	utils::mkdir "${TARGET_DIR}"
+}
+
+function	install::wallpaper()
+{
+	utils::move_dir "${MOD_FILE_DIR}" "${TARGET_DIR}" y
+	if [ -L "${HOME}/Pictures/selected_wallpaper" ]; then
+		rm "${HOME}/Pictures/selected_wallpaper"
+	fi
+	ln -s "${MOD_FILE_DIR}/${SELECTED_WALLPAPER}" "${HOME}/Pictures/selected_wallpaper"
+}
+
+# Start
+function	module::start()
+{
+	local	base="${BASH_SOURCE[0]?}"
+
+	# remove filename
+	base="${base/install/}"
+	# if base dir is relative, suffix PWD to base
+	if [[ ${base} =~ ^\./.*$ ]]; then
+		base="${PWD}/${base}"
+	fi
+	# if not sourced, BASH_SOURCE keep current file when $0 keep launched file
+	if [ "${BASH_SOURCE[0]}" -ef "${0}" ]; then
+		source "${base}../../dot"
+
+		## BINDED FUNCTION
+		module::install "${MOD_NAME}"
+	fi
+}
+
+module::start

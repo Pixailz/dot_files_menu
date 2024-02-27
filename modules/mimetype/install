@@ -1,0 +1,51 @@
+#!/bin/bash
+
+## BINDED FUNCTION
+
+# function	pre::install::mimetype()
+# {
+# 	utils::mkdir "${TARGET_DIR}"
+# }
+
+function	mime_set()
+{ xdg-mime default "${1?}.desktop" "${2?}"; }
+
+function	install::mimetype()
+{
+	# DIRECTORY
+	for MIME in ${MIME_FILE[@]}; do mime_set "${APP_FILE}" "${MIME}"; done
+	# IMAGE
+	for MIME in ${MIME_IMAGE[@]}; do mime_set "${APP_IMAGE}" "${MIME}"; done
+	# VIDEO
+	for MIME in ${MIME_VIDEO[@]}; do mime_set "${APP_VIDEO}" "${MIME}"; done
+	# AUDIO
+	for MIME in ${MIME_AUDIO[@]}; do mime_set "${APP_AUDIO}" "${MIME}"; done
+	# BROWSER
+	for MIME in ${MIME_BROWSER[@]}; do mime_set "${APP_BROWSER}" "${MIME}"; done
+	# TORRENT
+	for MIME in ${MIME_TORRENT[@]}; do mime_set "${APP_TORRENT}" "${MIME}"; done
+	# IDE
+	for MIME in ${MIME_IDE[@]}; do mime_set "${APP_IDE}" "${MIME}"; done
+}
+
+# Start
+function	module::start()
+{
+	local	base="${BASH_SOURCE[0]?}"
+
+	# remove filename
+	base="${base/install/}"
+	# if base dir is relative, suffix PWD to base
+	if [[ ${base} =~ ^\./.*$ ]]; then
+		base="${PWD}/${base}"
+	fi
+	# if not sourced, BASH_SOURCE keep current file when $0 keep launched file
+	if [ "${BASH_SOURCE[0]}" -ef "${0}" ]; then
+		source "${base}../../dot"
+
+		## BINDED FUNCTION
+		module::install "${MOD_NAME}"
+	fi
+}
+
+module::start
