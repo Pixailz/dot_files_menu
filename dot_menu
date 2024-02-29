@@ -23,15 +23,35 @@ MAIN_TITLE="TITLE v1.0.0"
 
 FONT="${WHI}"
 
-SELECTED_ID=1
 SELECTED_FMT_BEG="${UND}"
 SELECTED_FMT_END="\x1b[0m"
 
 CURRENT_MODULE=""
 
-## NAMED ARRAY
-declare -A DEVELLOPED_ID
+BO_SHEB="$"
+# ╒═╕
+# │ │
+# ╘═╛
+BO_UR="╕"		# UPPER RIGHT
+BO_UL="╒"		# UPPER LEFT
+BO_HO="═"		# HORIZONTAL
+BO_VE="│"		# VERTICAL
+BO_LR="╛"		# LOWER RIGHT
+BO_LL="╘"		# LOWER LEFT
+BO_DS="╫"		# DEAD SINGLE
+BO_DD="╪"		# DEAD DOUBLE
 
+# # ╔═╗
+# # ║ ║
+# # ╚═╝
+# BO_UR="╗"
+# BO_UL="╔"
+# BO_HO="═"
+# BO_VE="║"
+# BO_LR="╝"
+# BO_LL="╚"
+
+## NAMED ARRAY
 # KEYCODE DECLARATION
 declare -A KS=(
 	["A"]=$'\x61'
@@ -64,42 +84,46 @@ declare -A KS=(
 # FUNCTIONS
 
 ## MENU
-function	menu_set_title()
+
+### FILL
+function	menu_fill_title()
 {
-	TO_RENDER_TITLE="\x1b[0;0H${1:-MAIN_TITLE}"
+	TO_RENDER_TITLE="\x1b[0;0H${MENU_ID_TITLE:-TITLE} ${MENU_ID_SEL_ID:-none}/${KEY_PRESS:-none}"
 }
 
-function	menu_set_date()
+function	menu_fill_date()
 {
 	printf -v TO_RENDER_DATE '%(%d-%m-%Y %H:%M:%S)T' -1
 	local	pos=$((SCREEN_SIZE[1] - ${#TO_RENDER_DATE} + 1))
 	TO_RENDER_DATE="\x1b[0;${pos}H${TO_RENDER_DATE}\n\n"
 }
 
-function	menu_set_item()
+function	menu_fill_item()
 {
-	local	item_name="${1:-}"
-	local	item_type="${MENU_ITEM[${item_name}]}"
+	local	item_id="${1:-1}"
+	local	item_display="${MENU_ID_ITEM_NAME[${item_id}]}"
+	local	item_name="${MENU_ID_ITEM_ORDER[${item_id}]}"
+	local	item_type="${MENU_ID_ITEM[${item_name}]}"
 	local	item_value="${!item_name}"
 
 	case "${item_type}" in
 		"menu")
 			local	var_loaded="MODULES_LOADED_${item_name}"
 			if [ "${!var_loaded}" == "1" ]; then
-				TO_RENDER_ITEM+="${item_name}\x1b[$((SCREEN_SIZE[1] - 2))G"
+				TO_RENDER_ITEM+="${item_display}\x1b[$((SCREEN_SIZE[1] - 2))G"
 				TO_RENDER_ITEM+="[${CYA}*${FONT}]"
 			else
-				TO_RENDER_ITEM+="${item_name}\x1b[$((SCREEN_SIZE[1] - 2))G"
+				TO_RENDER_ITEM+="${item_display}\x1b[$((SCREEN_SIZE[1] - 2))G"
 				TO_RENDER_ITEM+="[${ORA}*${FONT}]"
 			fi
 		;;
 		"function")
 			local	var_loaded="MODULES_LOADED_${item_name}"
 			if [ "$(type -t ${item_name})" == "function" ]; then
-				TO_RENDER_ITEM+="${item_name}\x1b[$((SCREEN_SIZE[1] - 2))G"
+				TO_RENDER_ITEM+="${item_display}\x1b[$((SCREEN_SIZE[1] - 2))G"
 				TO_RENDER_ITEM+="[${PUR}*${FONT}]"
 			else
-				TO_RENDER_ITEM+="${item_name}\x1b[$((SCREEN_SIZE[1] - 2))G"
+				TO_RENDER_ITEM+="${item_display}\x1b[$((SCREEN_SIZE[1] - 2))G"
 				TO_RENDER_ITEM+="[${ORA}*${FONT}]"
 			fi
 		;;
@@ -107,85 +131,164 @@ function	menu_set_item()
 			case "${item_type:4}" in
 				"bool")
 					if [ "${item_value}" == "true" ]; then
-						TO_RENDER_ITEM+="${item_name}\x1b[$((SCREEN_SIZE[1] - 2))G"
+						TO_RENDER_ITEM+="${item_display}\x1b[$((SCREEN_SIZE[1] - 2))G"
 						TO_RENDER_ITEM+="[${GRE}+${FONT}]"
 					else
-						TO_RENDER_ITEM+="${item_name}\x1b[$((SCREEN_SIZE[1] - 2))G"
+						TO_RENDER_ITEM+="${item_display}\x1b[$((SCREEN_SIZE[1] - 2))G"
 						TO_RENDER_ITEM+="[${RED}-${FONT}]"
 					fi
 				;;
+				"string")
+					TO_RENDER_ITEM+="${item_display}\x1b[$((SCREEN_SIZE[1] - ${#item_value} - 1))G"
+					TO_RENDER_ITEM+="[${CYA}${item_value}${FONT}]"
+				;;
 				"int")
-					TO_RENDER_ITEM+="${item_name}\x1b[$((SCREEN_SIZE[1] - ${#item_value} - 1))G"
+					TO_RENDER_ITEM+="${item_display}\x1b[$((SCREEN_SIZE[1] - ${#item_value} - 1))G"
 					TO_RENDER_ITEM+="[${GRE}${item_value}${FONT}]"
 				;;
 				"path")
 					local	color="${PUR}"
 
+					# TODO SHOTEN THE PATH WITH PWD
+					# item_value=$(shorten_path ${item_value})
 					if [ -d "${item_value}" ]; then
 						color="${BLU}"
-						# TODO SHOTEN THE PATH WITH PWD
-						# item_value=$(shorten_path ${item_value})
-						TO_RENDER_ITEM+="${item_name}\x1b[$((SCREEN_SIZE[1] - ${#item_value} - 2))G"
-						TO_RENDER_ITEM+="[${color}${item_value}/${FONT}]"
+						item_value="${item_value}/"
 					elif [ -f "${item_value}" ]; then
 						color="${WHI}"
 						if [ -x "${item_value}" ]; then
 							color="${GRE}"
 						fi
-						TO_RENDER_ITEM+="${item_name}\x1b[$((SCREEN_SIZE[1] - ${#item_value} - 1))G"
-						TO_RENDER_ITEM+="[${color}${item_value}${FONT}]"
+					elif [ -e "${item_value}" ];then
+						color="${PUR}"
+					else
+						color="${ORA}"
 					fi
+
+					TO_RENDER_ITEM+="${item_display}\x1b[$((SCREEN_SIZE[1] - ${#item_value} - 1))G"
+					TO_RENDER_ITEM+="[${color}${item_value}${FONT}]"
 				;;
-				*) TO_RENDER_ITEM+="${item_name}: ${item_type}" ;;
+				*) TO_RENDER_ITEM+="${item_display}: ${item_type}" ;;
 			esac
 		;;
-		*) TO_RENDER_ITEM+="${item_name}: ${item_type}";;
+		*) TO_RENDER_ITEM+="${item_display}: ${item_type}";;
 	esac
 	TO_RENDER_ITEM+="${SELECTED_FMT_END}\n"
 }
 
-function	menu_set_items()
+function	menu_action()
+{
+	local	item_name="${MENU_ID_ITEM_ORDER[$((${MENU_ID_SEL_ID} - 1))]}"
+	local	item_type=${MENU_ID_ITEM[${item_name}]}
+	local	item_value="${!item_name:-}"
+
+	case "${item_type}" in
+		"menu")
+			menu_action_module "${item_name}"
+		;;
+		"function")
+			[ "$(type -t ${item_name})" == "function" ] && ${item_name}
+		;;
+		"var:"*)
+			case "${item_type:4}" in
+				"bool")
+					if [ "${item_value}" == "true" ]; then
+						eval ${item_name}="false"
+					else
+						eval ${item_name}="true"
+					fi
+				;;
+				"string")
+					MENU_INPUT="${item_value}"
+					menu_input "String"
+					if [ "${MENU_INPUT_DONT_SAVE}" == "0" ];then
+						eval ${item_name}=${MENU_INPUT}
+					fi
+					MENU_INPUT=""
+				;;
+				"int")
+					MENU_INPUT="${item_value}"
+					menu_input "Integer" "int"
+					eval ${item_name}=${MENU_INPUT}
+					MENU_INPUT=""
+				;;
+				"path")
+					MENU_INPUT="${item_value}"
+					menu_input "Path"
+					eval ${item_name}=${MENU_INPUT}
+					MENU_INPUT=""
+				;;
+				*) ;;
+			esac
+		;;
+		*) ;;
+	esac
+}
+
+function	menu_action_module()
+{
+	local	current_module="${1:-}"
+	local	install_file="${MODS_DIR_BASE}/${current_module}/install"
+	local	config_file="${MODS_DIR_BASE}/${current_module}/${MOD_CONFIG_FILE}"
+	local	menu_func="menu::${current_module}"
+	local	var_loaded=MODULES_LOADED_${current_module}
+
+	# Check if already sourced
+	if [ "${!var_loaded}" != "1" ]; then
+		# Source module config file
+		[ -f "${config_file}" ] && source "${config_file}" || true
+		# Source module install file
+		[ "${BASH_SOURCE[0]}" -ef "${0}" ] && source "${install_file}"
+	fi
+	eval ${var_loaded}="1"
+	if [ "$(type -t ${menu_func})" == "function" ]; then
+		${menu_func}
+	else
+		printf "ERROR: menu::${current_module} not implemented\n"
+		sleep 2
+	fi
+}
+
+function	menu_fill_items()
 {
 	local	i=1
-	TO_RENDER_ITEM="${MENU_ITEM_TITLE}"
+	TO_RENDER_ITEM="${MENU_ID_PROMPT}"
 
-	for mod in ${MENU_ITEM_ORDER[@]}; do
+	for mod in ${MENU_ID_ITEM_ORDER[@]}; do
 		if [ "${i}" == "1" ]; then
 			TO_RENDER_ITEM+="┌"
-		elif [ "${i}" == "${#MENU_ITEM_ORDER[@]}" ]; then
+		elif [ "${i}" == "${#MENU_ID_ITEM_ORDER[@]}" ]; then
 			TO_RENDER_ITEM+="└"
 		else
 			TO_RENDER_ITEM+="├"
 		fi
-		if [ "${i}" == "${SELECTED_ID}" ]; then
+		if [ "${i}" == "${MENU_ID_SEL_ID}" ]; then
 			TO_RENDER_ITEM+="${SELECTED_FMT_BEG}"
 		fi
+		menu_fill_item "$((i - 1))"
 		((i++))
-		menu_set_item "${mod}"
 	done
 }
 
 function	menu_render()
 {
+	declare -gn MENU_ID_TITLE="MENU_${MENU_ID}_TITLE"
+	declare -gn MENU_ID_PROMPT="MENU_${MENU_ID}_PROMPT"
+	declare -gn MENU_ID_ITEM_ORDER=MENU_${MENU_ID}_ITEM_ORDER
+	declare -gn MENU_ID_ITEM_NAME=MENU_${MENU_ID}_ITEM_NAME
+	declare -gn MENU_ID_ITEM=MENU_${MENU_ID}_ITEM
+	declare -gn MENU_ID_SEL_ID=MENU_${MENU_ID}_SEL_ID
+	declare -gn RUNNING_ID="RUNNING_${MENU_ID}"
+
+	update_screen_size
 	printf "${CLR_SCR}"
-	menu_set_date
-	menu_set_items
+	menu_fill_title
+	menu_fill_date
+	menu_fill_items
 	TO_RENDER="${TO_RENDER_TITLE}${TO_RENDER_DATE}${TO_RENDER_ITEM}"
 	printf "%b" "${TO_RENDER}"
 }
 
-## OTHERS
-function	update_screen_size()
-{
-	SCREEN_SIZE=($(echo -e "lines\ncols"|tput -S))
-}
-
-function	conv_hex()
-{
-	while read -rs -N1 c; do
-		printf "%x" "'${c}"
-	done
-}
 
 ## KEY PRESS
 
@@ -210,6 +313,7 @@ function	key_press_main()
 		${KS["A"]})					KEY_PRESS="LEFT" ;;
 		${KS["ENTER"]})				KEY_PRESS="ENTER" ;;
 		${KS["SPACE"]})				KEY_PRESS="ENTER" ;;
+		${KS["ESC"]})				KEY_PRESS="EXIT";;
 		${KS["F1"]})				KEY_PRESS="F1" ;;
 		${KS["F2"]})				KEY_PRESS="F2" ;;
 		${KS["F3"]})				KEY_PRESS="F3" ;;
@@ -227,134 +331,25 @@ function	key_press_main()
 
 function	key_post_press_main()
 {
-	CURRENT_ITEM="${MODULE[$((${SELECTED_ID} - 1))]}"
-	if [ "${KEY_PRESS}" == "UP" -a ${SELECTED_ID} -gt 1 ]; then
-		((SELECTED_ID--))
-	elif [ "${KEY_PRESS}" == "DOWN" -a ${SELECTED_ID} -lt ${#MENU_ITEM[@]} ]; then
-		((SELECTED_ID++))
+	CURRENT_ITEM="${MODULE[$((${MENU_ID_SEL_ID} - 1))]}"
+	if [ "${KEY_PRESS}" == "UP" -a "${MENU_ID_SEL_ID}" -gt 1 ]; then
+		((MENU_ID_SEL_ID--))
+	elif [ "${KEY_PRESS}" == "DOWN" -a "${MENU_ID_SEL_ID}" -lt "${#MENU_ID_ITEM_ORDER[@]}" ]; then
+		((MENU_ID_SEL_ID++))
 	elif [ "${KEY_PRESS}" == "RIGHT" ]; then
 		key_develop
 	elif [ "${KEY_PRESS}" == "ENTER" ]; then
 		menu_action
+	elif [ "${KEY_PRESS}" == "EXIT" ]; then
+		RUNNING_ID=0
 	fi
 }
 
-function	key_develop()
-{
-	if [ "${DEVELLOPED_ID[${CURRENT_MODULE}]}" == "true" ]; then
-		DEVELLOPED_ID[${CURRENT_MODULE}]="false"
-	else
-		DEVELLOPED_ID[${CURRENT_MODULE}]="true"
-	fi
-}
-
-function	menu_input()
-{
-	local	input_type="${1:-none}"
-	local	input_title="${2:-input title}"
-
-
-}
-
-function	menu_action()
-{
-	local	item_name="${MENU_ITEM_ORDER[$((${SELECTED_ID} - 1))]}"
-	local	item_type=${MENU_ITEM[${item_name}]}
-	local	item_value="${!item_name:-}"
-
-	case "${item_type}" in
-		"menu")
-			menu_action_module "${item_name}"
-		;;
-		"function")
-			[ "$(type -t ${item_name})" == "function" ] && ${item_name}
-		;;
-		"var:"*)
-			case "${item_type:4}" in
-				"bool")
-				if [ "${item_value}" == "true" ]; then
-					eval ${item_name}="false"
-				else
-					eval ${item_name}="true"
-				fi
-				;;
-				"int")
-				;;
-				"path")
-				;;
-				*) ;;
-			esac
-		;;
-		*) ;;
-	esac
-}
-
-function	menu_action_module()
-{
-	local	current_module="${1:-}"
-	local	install_file="${MODS_DIR_BASE}/${current_module}/install"
-	local	config_file="${MODS_DIR_BASE}/${current_module}/${MOD_CONFIG_FILE}"
-	local	menu_func="menu_${current_module}"
-	local	var_loaded=MODULES_LOADED_${current_module}
-
-	# Check if already sourced
-	if [ "${!var_loaded}" != "1" ]; then
-		# Source module config file
-		[ -f "${config_file}" ] && source "${config_file}" || true
-		# Source module install file
-		[ "${BASH_SOURCE[0]}" -ef "${0}" ] && source "${install_file}"
-	fi
-	eval ${var_loaded}="1"
-	[ "$(type -t ${menu_func})" == "function" ] && ${menu_func} || \
-		{
-			printf "ERROR: menu_${current_module} not implemented\n"
-			sleep 2
-		}
-}
-
-# MAIN
-
-
-function	rep()
-{
-	local	n="${1:-10}"
-	local	c="${2:- }"
-
-	while [ "${n}" != "0" ]; do
-		echo -n ${c}
-		((n--))
-	done
-}
-
-
-BO_SHEB="$"
-# ╒═╕
-# │ │
-# ╘═╛
-BO_UR="╕"		# UPPER RIGHT
-BO_UL="╒"		# UPPER LEFT
-BO_HO="═"		# HORIZONTAL
-BO_VE="│"		# VERTICAL
-BO_LR="╛"		# LOWER RIGHT
-BO_LL="╘"		# LOWER LEFT
-BO_DS="╫"		# DEAD SINGLE
-BO_DD="╪"		# DEAD DOUBLE
-
-# # ╔═╗
-# # ║ ║
-# # ╚═╝
-# BO_UR="╗"
-# BO_UL="╔"
-# BO_HO="═"
-# BO_VE="║"
-# BO_LR="╝"
-# BO_LL="╚"
-
+# INPUT
 function	input_render()
 {
-	local	input_type="${1:-none}"
-	local	input_title="${2:-input title}"
-	local	input_len="${3:-35}"
+	local	input_title="${1:-input title}"
+	local	input_len="${2:-35}"
 	local	middle_s_l="$((${SCREEN_SIZE[0]} / 2))"
 	local	middle_s_c="$((${SCREEN_SIZE[1]} / 2))"
 	local	middle_input="$((${input_len} / 2))"
@@ -377,7 +372,6 @@ function	input_render()
 		fi
 	done
 	TO_RENDER_INPUT+="$(rep $((input_len - 3 - ${#MENU_INPUT})))${BO_VE}"
-
 	TO_RENDER_INPUT+="\x1b[$((${middle_s_l} + 1));$((middle_s_c - middle_input))H"
 	TO_RENDER_INPUT+="${BO_LL} (${BLU}E${RST})sc "
 	TO_RENDER_INPUT+="$(rep $((input_len - 9)) ${BO_HO})${BO_LR}"
@@ -392,17 +386,26 @@ function	key_press_input()
 	read -rs -N1 P1
 	read -rs -N4 -t 0.001 P2
 	local	mode="$P1$P2"
+	local	type="${1}"
+	local	regex="^[a-zA-Z0-9/\\.]$"
 
-
-	if [[ ${mode} =~ ^[a-zA-Z0-9/\\]$ ]]; then
+	if [ "${type}" == "int" ]; then
+		regex="^[0-9]$"
+	fi
+	if [[ ${mode} =~ ${regex} ]]; then
 		MENU_INPUT="${MENU_INPUT}${mode}"
 	else
 		case "${mode}" in
 			${KS["ESC"]})
-				menu_escape
+				menu_escape "Save change ?"
+				[ "${ESC_SEL_ID}" == 2 ] && MENU_INPUT_DONT_SAVE="1" || true
+				[ "${ESC_SEL_ID}" != 3 ] && MENU_INPUT_END="1" || true
 			;;
 			${KS["RETURN"]})
 				[ "${#MENU_INPUT}" != "0" ] && MENU_INPUT="${MENU_INPUT::-1}" || true
+			;;
+			${KS["ENTER"]})
+				MENU_INPUT_END="1"
 			;;
 		esac
 	fi
@@ -410,34 +413,38 @@ function	key_press_input()
 
 function	menu_input()
 {
-	MENU_INPUT=""
-	input_render
+	local	input_title="${1:-}"
+	local	input_type="${2:-string}"
+	local	input_warn="${3:-0}"
 
-	while key_press_input; do
-		input_render
+	update_screen_size
+	MENU_INPUT_END="0"
+	MENU_INPUT_DONT_SAVE="0"
+	MENU_INPUT="${MENU_INPUT:-}"
+	input_render "${input_title}"
+
+	while [ "${MENU_INPUT_END}" != 1 ]; do
+		key_press_input "${input_type}"
+		input_render "${input_title}"
 	done
 }
 
+# ESCAPE
 function	escape_render()
 {
-	local	escape_len="${3:-30}"
+	local	escape_title="${1:-}"
+	local	escape_len="${2:-35}"
 	local	middle_s_l="$((${SCREEN_SIZE[0]} / 2))"
 	local	middle_s_c="$((${SCREEN_SIZE[1]} / 2))"
 	local	middle_input="$((${escape_len} / 2))"
 
 	local	input_beg_col="$((middle_s_c - middle_input))"
 
-	TO_RENDER_ESCAPE="\x1b[$((middle_s_l - 2));${input_beg_col}H"
-	TO_RENDER_ESCAPE+="${REV}${BO_UL}$(rep ${escape_len} ${BO_HO})${BO_UR}"
-
 	# CANCEL CHANGE
-	local	beg_title="$(((escape_len - 14) / 2))"
+	local	beg_title="$(((escape_len - ${#escape_title}) / 2))"
 	TO_RENDER_ESCAPE+="\x1b[$((middle_s_l - 1));${input_beg_col}H"
-	TO_RENDER_ESCAPE+="${BO_VE}$(rep $((beg_title + 1)))"
-	TO_RENDER_ESCAPE+="Save change ?$(rep ${beg_title})${BO_VE}"
-
-	TO_RENDER_ESCAPE+="\x1b[$((middle_s_l));${input_beg_col}H"
-	TO_RENDER_ESCAPE+="${BO_VE}$(rep ${escape_len})${BO_VE}"
+	TO_RENDER_ESCAPE+="${BO_UL}$(rep $((beg_title - 2)) ${BO_HO})"
+	TO_RENDER_ESCAPE+=" ${escape_title} $(rep $((beg_title - 2)) ${BO_HO})${BO_UR}"
 
 	# CHOICE
 	local	esc_yes="yes"
@@ -445,34 +452,20 @@ function	escape_render()
 	local	esc_cancel="cancel"
 
 	case "${ESC_SEL_ID}" in
-		1) esc_yes="${GRE}${UND}${esc_yes}${RST}${REV}" ;;
-		2) esc_no="${RED}${UND}${esc_no}${RST}${REV}" ;;
-		3) esc_cancel="${ORA}${UND}${esc_cancel}${RST}${REV}" ;;
+		1) esc_yes="${GRE}${UND}${esc_yes}${RST}" ;;
+		2) esc_no="${RED}${UND}${esc_no}${RST}" ;;
+		3) esc_cancel="${ORA}${UND}${esc_cancel}${RST}" ;;
 	esac
 
+	TO_RENDER_ESCAPE+="\x1b[$((middle_s_l));${input_beg_col}H"
+	TO_RENDER_ESCAPE+="${BO_VE}"
+	TO_RENDER_ESCAPE+=" ${esc_yes}$(rep 11)${esc_no}$(rep 9)${esc_cancel} "
+	TO_RENDER_ESCAPE+="${BO_VE}"
+
 	TO_RENDER_ESCAPE+="\x1b[$((middle_s_l + 1));${input_beg_col}H"
-	TO_RENDER_ESCAPE+="${BO_VE}"
-	TO_RENDER_ESCAPE+=" ${esc_yes}          ${esc_no}       ${esc_cancel} "
-	TO_RENDER_ESCAPE+="${BO_VE}"
+	TO_RENDER_ESCAPE+="${BO_LL}$(rep $((${escape_len} - 2)) ${BO_HO})${BO_LR}"
 
-
-	TO_RENDER_ESCAPE+="\x1b[$((middle_s_l + 2));${input_beg_col}H"
-	TO_RENDER_ESCAPE+="${BO_LL}$(rep ${escape_len} ${BO_HO})${BO_LR}"
-	printf "%b" "${TO_RENDER_ESCAPE}${RST}${FONT}"
-}
-
-function	key_post_press_escape()
-{
-	CURRENT_ITEM="${MODULE[$((${SELECTED_ID} - 1))]}"
-	if [ "${KEY_PRESS}" == "UP" -a ${SELECTED_ID} -gt 1 ]; then
-		((SELECTED_ID--))
-	elif [ "${KEY_PRESS}" == "DOWN" -a ${SELECTED_ID} -lt ${#MENU_ITEM[@]} ]; then
-		((SELECTED_ID++))
-	elif [ "${KEY_PRESS}" == "RIGHT" ]; then
-		key_develop
-	elif [ "${KEY_PRESS}" == "ENTER" ]; then
-		menu_action
-	fi
+	printf "%b" "${TO_RENDER_ESCAPE}"
 }
 
 # https://abs.traduc.org/abs-fr/ch05s02.html (chapter 5.3)
@@ -499,52 +492,136 @@ function	key_press_escape()
 				ESC_SEL_ID="3"
 			fi
 		;;
-		${KS["ENTER"]}) ESC_CHOICE="${ESC_SEL_ID}";;
-		${KS["ESC"]}) ESC_CHOICE="3";;
+		${KS["ENTER"]}) ESC_SEL_ID_END="1";;
+		${KS["ESC"]}) ESC_SEL_ID_END="1" ESC_SEL_ID="3";;
 	esac
 }
 
 function	menu_escape()
 {
-	ESC_SEL_ID=1
-	ESC_CHOICE=-1
-	escape_render
+	local	escape_title="${1:-}"
 
-	while [ "${ESC_CHOICE}" == "-1" ]; do
+	update_screen_size
+	ESC_SEL_ID=1
+	ESC_SEL_ID_END=0
+	escape_render "${escape_title}"
+
+	while [ "${ESC_SEL_ID_END}" != "1" ]; do
 		key_press_escape
-		escape_render
+		escape_render "${escape_title}"
 	done
 }
 
-MENU_ITEM_TITLE="   Available modules:\n\n"
-MENU_ITEM_ORDER=(
-	"bash"
-	"TEST_VAR_BOOL"
-	"TEST_VAR_PATH"
-	"TEST_VAR_INT"
-	"menu_input"
+## OTHERS
+function	update_screen_size()
+{ SCREEN_SIZE=($(echo -e "lines\ncols"|tput -S)); }
+
+function	conv_hex()
+{ while read -rs -N1 c; do printf "%x" "'${c}"; done; }
+
+function	rep()
+{
+	local	n="${1:-10}"
+	local	c="${2:- }"
+
+	while [ "${n}" != "0" ]; do
+		echo -n ${c}
+		((n--))
+	done
+}
+
+# MAIN
+
+function	test_menu()
+{
+	MENU_ID_SAVE="${MENU_ID}"
+	MENU_ID="TEST"
+	MENU_TEST_SEL_ID=1
+	MENU_TEST_TITLE="TEST MENU"
+	MENU_TEST_PROMPT="   ITEM AVAILABLE\n\n"
+	MENU_TEST_ITEM_ORDER=(
+		"menu_input"
+		"TEST_VAR_STRING"
+		"bash"
+		"TEST_VAR_BOOL"
+		"TEST_VAR_PATH_DIR"
+		"TEST_VAR_PATH_EXEC"
+		"TEST_VAR_PATH_FILE"
+		"TEST_VAR_PATH_NOT_FOUND"
+		"TEST_VAR_PATH_LIEN"
+		"TEST_VAR_INT"
+	)
+	MENU_TEST_ITEM_NAME=(
+		"menu input"
+		"test var string"
+		"bash"
+		"test var bool"
+		"test var path dir"
+		"test var path exec"
+		"test var path file"
+		"test var path not_found"
+		"test var path lien"
+		"test var int"
+	)
+
+	declare -A MENU_TEST_ITEM=(
+		["menu_input"]="function"
+		["bash"]="menu"
+		["TEST_VAR_STRING"]="var:string"
+		["TEST_VAR_BOOL"]="var:bool"
+		["TEST_VAR_PATH_DIR"]="var:path"
+		["TEST_VAR_PATH_EXEC"]="var:path"
+		["TEST_VAR_PATH_FILE"]="var:path"
+		["TEST_VAR_PATH_NOT_FOUND"]="var:path"
+		["TEST_VAR_PATH_LIEN"]="var:path"
+		["TEST_VAR_INT"]="var:int"
+	)
+
+	TEST_VAR_BOOL=false
+	TEST_VAR_PATH=""
+	TEST_VAR_PATH_DIR="${HOME}"
+	TEST_VAR_PATH_EXEC="${HOME}/.fehbg"
+	TEST_VAR_PATH_FILE="${HOME}/.bashrc"
+	TEST_VAR_PATH_NOT_FOUND="/NOT/FOUND"
+	TEST_VAR_PATH_LIEN="/dev/disk/by-label/Data"
+	TEST_VAR_INT=1234
+	TEST_VAR_STRING="ABCD"
+
+	RUNNING_TEST="1"
+	while [ "${RUNNING_TEST}" == "1" ]; do
+		menu_render
+		key_press_main
+		key_post_press_main
+	done
+	MENU_ID="${MENU_ID_SAVE}"
+}
+
+MENU_ID="MAIN"
+MENU_MAIN_SEL_ID=1
+MENU_MAIN_TITLE="Made by Pixailz"
+MENU_MAIN_PROMPT="   Available modules:\n\n"
+MENU_MAIN_ITEM_ORDER=()
+MENU_MAIN_ITEM_NAME=()
+
+declare -A MENU_MAIN_ITEM=(
+	["test_menu"]="function"
+	["exit"]="function"
 )
 
-TEST_VAR_BOOL=false
-TEST_VAR_PATH="${HOME}/.fehbg"
-TEST_VAR_INT=1234
+for mods in ${MODULE[@]}; do
+	MENU_MAIN_ITEM[${mods}]="menu"
+	MENU_MAIN_ITEM_ORDER+=("${mods}")
+	MENU_MAIN_ITEM_NAME+=("${mods^^}")
+done
+MENU_MAIN_ITEM_ORDER+=("test_menu")
+MENU_MAIN_ITEM_NAME+=("Test menu")
 
-declare -A MENU_ITEM=(
-	["bash"]="menu"
-	["TEST_VAR_BOOL"]="var:bool"
-	["TEST_VAR_PATH"]="var:path"
-	["TEST_VAR_INT"]="var:int"
-	["menu_input"]="function"
-)
-
-update_screen_size
-menu_set_title
-menu_render
+RUNNING_MAIN="1"
 
 # keypress
-while true; do
+while [ "${RUNNING_MAIN}" == "1" ]; do
+	menu_fill_title "KEY ${KEY_PRESS} PRESSED"
+	menu_render
 	key_press_main
 	key_post_press_main
-	menu_set_title "KEY ${KEY_PRESS} PRESSED"
-	menu_render
 done

@@ -3,10 +3,8 @@ TUI For dot files
 
 # ToDo
 
-1. fix escape and input box overlaping
-   1. create a list of 'thing' to render and render it all on each closing
-   opening box
-1. when input box is finished, link to set `var:*` value
-1. find a way to save and edited variables
+1. find a way to save and see edited variables
+   1. see secondary buffer or vim like app to see current config
+   1. define config / profile structure to save config
 1. upper or lower bar for `return`, `view current config`, `exit`, `save config`
 `info`
