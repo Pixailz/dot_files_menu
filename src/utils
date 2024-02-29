@@ -1,0 +1,18 @@
+#!/bin/bash
+
+function	update_screen_size()
+{ SCREEN_SIZE=($(echo -e "lines\ncols"|tput -S)); }
+
+function	conv_hex()
+{ while read -rs -N1 c; do printf "%x" \'"${c}"; done; }
+
+function	rep()
+{
+	local	n="${1:-10}"
+	local	c="${2:- }"
+
+	while [ "${n}" != "0" ]; do
+		echo -n ${c}
+		((n--))
+	done
+}

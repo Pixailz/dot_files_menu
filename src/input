@@ -1,0 +1,85 @@
+#!/bin/bash
+
+# INPUT
+function	input_render()
+{
+	local	input_title="${1:-input title}"
+	local	input_len="${2:-35}"
+	local	middle_s_l="$((${SCREEN_SIZE[0]} / 2))"
+	local	middle_s_c="$((${SCREEN_SIZE[1]} / 2))"
+	local	middle_input="$((${input_len} / 2))"
+
+	local	input_beg_col="$((middle_s_c - middle_input))"
+
+	TO_RENDER_INPUT="\x1b[$((${middle_s_l} - 1));$((middle_s_c - middle_input))H"
+	TO_RENDER_INPUT+="${BO_UL} ${input_title} "
+	TO_RENDER_INPUT+="$(rep $((input_len - 4 - ${#input_title})) ${BO_HO})${BO_UR}"
+
+	TO_RENDER_INPUT+="\x1b[$((${middle_s_l}));$((middle_s_c - middle_input))H"
+	TO_RENDER_INPUT+="${BO_VE}${BO_SHEB}"
+
+	# double \ by escaping it two time
+	for ((i = 0; i < ${#MENU_INPUT}; i++)); do
+		if [ "${MENU_INPUT:${i}:1}" == "\\" ]; then
+			TO_RENDER_INPUT+="\\\\"
+		else
+			TO_RENDER_INPUT+="${MENU_INPUT:${i}:1}"
+		fi
+	done
+	TO_RENDER_INPUT+="$(rep $((input_len - 3 - ${#MENU_INPUT})))${BO_VE}"
+	TO_RENDER_INPUT+="\x1b[$((${middle_s_l} + 1));$((middle_s_c - middle_input))H"
+	TO_RENDER_INPUT+="${BO_LL} (${BLU}E${RST})sc "
+	TO_RENDER_INPUT+="$(rep $((input_len - 9)) ${BO_HO})${BO_LR}"
+	printf "%b" ${TO_RENDER_INPUT}
+}
+
+# https://abs.traduc.org/abs-fr/ch05s02.html (chapter 5.3)
+function	key_press_input()
+{
+	# Read one char + additional for special key
+	unset P1 P2
+	read -rs -N1 P1
+	read -rs -N4 -t 0.001 P2
+	local	mode="$P1$P2"
+	local	type="${1}"
+	local	regex='^[[:print:]]$'
+
+	if [ "${type}" == "int" ]; then
+		regex="^[0-9]$"
+	fi
+	if [[ ${mode} =~ ${regex} ]]; then
+		MENU_INPUT="${MENU_INPUT}${mode}"
+	else
+		case "${mode}" in
+			${KS["ESC"]})
+				menu_escape "Save change ?"
+				[ "${ESC_SEL_ID}" == 2 ] && MENU_INPUT_DONT_SAVE="1" || true
+				[ "${ESC_SEL_ID}" != 3 ] && MENU_INPUT_END="1" || true
+			;;
+			${KS["RETURN"]})
+				[ "${#MENU_INPUT}" != "0" ] && MENU_INPUT="${MENU_INPUT::-1}" || true
+			;;
+			${KS["ENTER"]})
+				MENU_INPUT_END="1"
+			;;
+		esac
+	fi
+}
+
+function	menu_input()
+{
+	local	input_title="${1:-}"
+	local	input_type="${2:-string}"
+	local	input_warn="${3:-0}"
+
+	update_screen_size
+	MENU_INPUT_END="0"
+	MENU_INPUT_DONT_SAVE="0"
+	MENU_INPUT="${MENU_INPUT:-}"
+	input_render "${input_title}"
+
+	while [ "${MENU_INPUT_END}" != 1 ]; do
+		key_press_input "${input_type}"
+		input_render "${input_title}"
+	done
+}

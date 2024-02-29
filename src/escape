@@ -1,0 +1,85 @@
+#!/bin/bash
+
+# ESCAPE
+function	escape_render()
+{
+	local	escape_title="${1:-}"
+	local	escape_len="${2:-35}"
+	local	middle_s_l="$((${SCREEN_SIZE[0]} / 2))"
+	local	middle_s_c="$((${SCREEN_SIZE[1]} / 2))"
+	local	middle_input="$((${escape_len} / 2))"
+
+	local	input_beg_col="$((middle_s_c - middle_input))"
+
+	# CANCEL CHANGE
+	local	beg_title="$(((escape_len - ${#escape_title}) / 2))"
+	TO_RENDER_ESCAPE+="\x1b[$((middle_s_l - 1));${input_beg_col}H"
+	TO_RENDER_ESCAPE+="${BO_UL}$(rep $((beg_title - 2)) ${BO_HO})"
+	TO_RENDER_ESCAPE+=" ${escape_title} $(rep $((beg_title - 2)) ${BO_HO})${BO_UR}"
+
+	# CHOICE
+	local	esc_yes="yes"
+	local	esc_no="no"
+	local	esc_cancel="cancel"
+
+	case "${ESC_SEL_ID}" in
+		1) esc_yes="${GRE}${UND}${esc_yes}${RST}" ;;
+		2) esc_no="${RED}${UND}${esc_no}${RST}" ;;
+		3) esc_cancel="${ORA}${UND}${esc_cancel}${RST}" ;;
+	esac
+
+	TO_RENDER_ESCAPE+="\x1b[$((middle_s_l));${input_beg_col}H"
+	TO_RENDER_ESCAPE+="${BO_VE}"
+	TO_RENDER_ESCAPE+=" ${esc_yes}$(rep 11)${esc_no}$(rep 9)${esc_cancel} "
+	TO_RENDER_ESCAPE+="${BO_VE}"
+
+	TO_RENDER_ESCAPE+="\x1b[$((middle_s_l + 1));${input_beg_col}H"
+	TO_RENDER_ESCAPE+="${BO_LL}$(rep $((${escape_len} - 2)) ${BO_HO})${BO_LR}"
+
+	printf "%b" "${TO_RENDER_ESCAPE}"
+}
+
+# https://abs.traduc.org/abs-fr/ch05s02.html (chapter 5.3)
+function	key_press_escape()
+{
+	# Read one char + additional for special key
+	unset P1 P2
+	read -rs -N1 P1
+	read -rs -N4 -t 0.001 P2
+	local	mode="$P1$P2"
+
+	case "${mode}" in
+		${KS["ARROW_RIGHT"]})
+			if [ ${ESC_SEL_ID} -lt 3 ]; then
+				((ESC_SEL_ID++))
+			else
+				ESC_SEL_ID="1"
+			fi
+		;;
+		${KS["ARROW_LEFT"]})
+			if [ ${ESC_SEL_ID} -gt 1 ]; then
+				((ESC_SEL_ID--))
+			else
+				ESC_SEL_ID="3"
+			fi
+		;;
+		${KS["ENTER"]}) ESC_SEL_ID_END="1";;
+		${KS["ESC"]}) ESC_SEL_ID_END="1" ESC_SEL_ID="3";;
+	esac
+}
+
+function	menu_escape()
+{
+	local	escape_title="${1:-}"
+
+	update_screen_size
+	ESC_SEL_ID=1
+	ESC_SEL_ID_END=0
+	escape_render "${escape_title}"
+
+	while [ "${ESC_SEL_ID_END}" != "1" ]; do
+		key_press_escape
+		escape_render "${escape_title}"
+	done
+}
+
