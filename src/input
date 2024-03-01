@@ -4,14 +4,14 @@
 function	input_render()
 {
 	local	input_title="${1:-input title}"
-	local	input_len="${2:-35}"
+	local	input_len="${2:-${SIZE_BOX}}"
 	local	middle_s_l="$((${SCREEN_SIZE[0]} / 2))"
 	local	middle_s_c="$((${SCREEN_SIZE[1]} / 2))"
 	local	middle_input="$((${input_len} / 2))"
 
 	local	input_beg_col="$((middle_s_c - middle_input))"
 
-	TO_RENDER_INPUT="\x1b[$((${middle_s_l} - 1));$((middle_s_c - middle_input))H"
+	TO_RENDER_INPUT="${FONT}\x1b[$((${middle_s_l} - 1));$((middle_s_c - middle_input))H"
 	TO_RENDER_INPUT+="${BO_UL} ${input_title} "
 	TO_RENDER_INPUT+="$(rep $((input_len - 4 - ${#input_title})) ${BO_HO})${BO_UR}"
 
@@ -28,9 +28,9 @@ function	input_render()
 	done
 	TO_RENDER_INPUT+="$(rep $((input_len - 3 - ${#MENU_INPUT})))${BO_VE}"
 	TO_RENDER_INPUT+="\x1b[$((${middle_s_l} + 1));$((middle_s_c - middle_input))H"
-	TO_RENDER_INPUT+="${BO_LL} (${BLU}E${RST})sc "
+	TO_RENDER_INPUT+="${BO_LL} (${BLU}E${FONT})sc "
 	TO_RENDER_INPUT+="$(rep $((input_len - 9)) ${BO_HO})${BO_LR}"
-	printf "%b" ${TO_RENDER_INPUT}
+	printf "%b" "${TO_RENDER_INPUT}"
 }
 
 # https://abs.traduc.org/abs-fr/ch05s02.html (chapter 5.3)
@@ -39,7 +39,7 @@ function	key_press_input()
 	# Read one char + additional for special key
 	unset P1 P2
 	read -rs -N1 P1
-	read -rs -N4 -t 0.001 P2
+	read -rs -N4 -t 0.001 P2 || true
 	local	mode="$P1$P2"
 	local	type="${1}"
 	local	regex='^[[:print:]]$'
@@ -78,7 +78,7 @@ function	menu_input()
 	MENU_INPUT="${MENU_INPUT:-}"
 	input_render "${input_title}"
 
-	while [ "${MENU_INPUT_END}" != 1 ]; do
+	while [ "${MENU_INPUT_END}" != 1 ] && [ "${CTRL_C}" == "0" ]; do
 		key_press_input "${input_type}"
 		input_render "${input_title}"
 	done

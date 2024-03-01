@@ -1,0 +1,20 @@
+#!/bin/bash
+
+ESC="\x1b"
+CSI="${ESC}["
+ENALBE_SGR_MOUSE_MODE="${CSI}[?1006;1004;1000h"
+
+printf "${CSI}?1049h" # Save screen
+printf "${CSI}22;;t" # Set window title
+printf "${CSI}1;46r" # Set scrolling region
+printf "${ESC}(B" # Set character set to ASCII
+printf "${CSI}m" # Reset attributes
+printf "${CSI}4l" # Reset insert mode
+printf "${CSI}?7" # Reset wraparound mode
+printf "${CSI}?1h" # Reset cursor key to application
+printf "${ESC}=" # Reset numeric keypad to application
+printf "${CSI}?[1006;1004;1000h" # Enable SGR mouse mode
+printf "${CSI}39;49m" # Reset colors
+printf "${CSI}?1h" # Reset cursor key to applicationDD
+printf "${CSI}"
+printf "${ESC}(0" # Set character set to

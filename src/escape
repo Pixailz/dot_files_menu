@@ -4,33 +4,45 @@
 function	escape_render()
 {
 	local	escape_title="${1:-}"
-	local	escape_len="${2:-35}"
+	local	escape_len="${2:-${SIZE_BOX}}"
 	local	middle_s_l="$((${SCREEN_SIZE[0]} / 2))"
 	local	middle_s_c="$((${SCREEN_SIZE[1]} / 2))"
-	local	middle_input="$((${escape_len} / 2))"
+	local	middle_escape="$((${escape_len} / 2))"
 
-	local	input_beg_col="$((middle_s_c - middle_input))"
+	local	input_beg_col="$((middle_s_c - middle_escape))"
 
 	# CANCEL CHANGE
 	local	beg_title="$(((escape_len - ${#escape_title}) / 2))"
-	TO_RENDER_ESCAPE+="\x1b[$((middle_s_l - 1));${input_beg_col}H"
+	local	padd_str=""
+	if [ "$(((escape_len - ${#escape_title}) % 2))" == "1" ]; then
+		padd_str=" "
+	fi
+	TO_RENDER_ESCAPE+="${FONT}\x1b[$((middle_s_l - 1));${input_beg_col}H"
 	TO_RENDER_ESCAPE+="${BO_UL}$(rep $((beg_title - 2)) ${BO_HO})"
-	TO_RENDER_ESCAPE+=" ${escape_title} $(rep $((beg_title - 2)) ${BO_HO})${BO_UR}"
+	TO_RENDER_ESCAPE+=" ${escape_title} ${padd_str}$(rep $((beg_title - 2)) ${BO_HO})${BO_UR}"
 
 	# CHOICE
-	local	esc_yes="yes"
-	local	esc_no="no"
-	local	esc_cancel="cancel"
+	local	esc_1="yes"
+	local	l_esc_1="${#esc_1}"
+	local	esc_2="no"
+	local	l_esc_2="${#esc_2}"
+	local	esc_3="cancel"
+	local	l_esc_3="${#esc_3}"
 
 	case "${ESC_SEL_ID}" in
-		1) esc_yes="${GRE}${UND}${esc_yes}${RST}" ;;
-		2) esc_no="${RED}${UND}${esc_no}${RST}" ;;
-		3) esc_cancel="${ORA}${UND}${esc_cancel}${RST}" ;;
+		1) esc_1="${GRE}${UND}${esc_1}${UND_RST}${FONT}" ;;
+		2) esc_2="${RED}${UND}${esc_2}${UND_RST}${FONT}" ;;
+		3) esc_3="${ORA}${UND}${esc_3}${UND_RST}${FONT}" ;;
 	esac
 
+	padd_str=""
+	if [ "$((escape_len % 2))" == "1" ]; then
+		padd_str=" "
+	fi
 	TO_RENDER_ESCAPE+="\x1b[$((middle_s_l));${input_beg_col}H"
 	TO_RENDER_ESCAPE+="${BO_VE}"
-	TO_RENDER_ESCAPE+=" ${esc_yes}$(rep 11)${esc_no}$(rep 9)${esc_cancel} "
+	TO_RENDER_ESCAPE+=" ${esc_1}$(rep $((middle_escape - ${l_esc_1} - 2)))"
+	TO_RENDER_ESCAPE+="${esc_2}${padd_str}$(rep $((middle_escape - ${l_esc_2} - ${l_esc_3} - 2)))${esc_3} "
 	TO_RENDER_ESCAPE+="${BO_VE}"
 
 	TO_RENDER_ESCAPE+="\x1b[$((middle_s_l + 1));${input_beg_col}H"
@@ -45,7 +57,7 @@ function	key_press_escape()
 	# Read one char + additional for special key
 	unset P1 P2
 	read -rs -N1 P1
-	read -rs -N4 -t 0.001 P2
+	read -rs -N4 -t 0.001 P2 || true
 	local	mode="$P1$P2"
 
 	case "${mode}" in
@@ -77,7 +89,7 @@ function	menu_escape()
 	ESC_SEL_ID_END=0
 	escape_render "${escape_title}"
 
-	while [ "${ESC_SEL_ID_END}" != "1" ]; do
+	while [ "${ESC_SEL_ID_END}" != "1" ] && [ "${CTRL_C}" == "0" ]; do
 		key_press_escape
 		escape_render "${escape_title}"
 	done

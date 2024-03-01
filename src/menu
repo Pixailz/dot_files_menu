@@ -3,7 +3,7 @@
 # MAIN MENU
 function	menu_fill_title()
 {
-	TO_RENDER_TITLE="\x1b[0;0H${MENU_ID_TITLE:-TITLE} ${MENU_ID_SEL_ID:-none}/${KEY_PRESS:-none}"
+	TO_RENDER_TITLE="${FONT}\x1b[0;0H${MENU_ID_TITLE:-TITLE} ${MENU_ID_SEL_ID:-none}/${KEY_PRESS:-none}"
 }
 
 function	menu_fill_date()
@@ -13,90 +13,10 @@ function	menu_fill_date()
 	TO_RENDER_DATE="\x1b[0;${pos}H${TO_RENDER_DATE}\n\n"
 }
 
-function	menu_fill_item()
-{
-	local	item_id="${1:-1}"
-	local	item_display="${MENU_ID_ITEM_NAME[${item_id}]}"
-	local	item_name="${MENU_ID_ITEM_ORDER[${item_id}]}"
-	local	item_type="${MENU_ID_ITEM[${item_name}]}"
-	local	item_value="${!item_name}"
-
-	case "${item_type}" in
-		"module")
-			declare -n var_loaded="MODULES_LOADED_${item_name}"
-			if [ "${var_loaded}" == "1" ]; then
-				TO_RENDER_ITEM+="${item_display}\x1b[$((SCREEN_SIZE[1] - 2))G"
-				TO_RENDER_ITEM+="[${GRE}*${FONT}]"
-			elif [ "${var_loaded}" == "2" ]; then
-				TO_RENDER_ITEM+="${item_display}\x1b[$((SCREEN_SIZE[1] - 2))G"
-				TO_RENDER_ITEM+="[${RED}*${FONT}]"
-			else
-				TO_RENDER_ITEM+="${item_display}\x1b[$((SCREEN_SIZE[1] - 2))G"
-				TO_RENDER_ITEM+="[${CYA}*${FONT}]"
-			fi
-		;;
-		"function")
-			if [ "$(type -t ${item_name})" == "function" ]; then
-				TO_RENDER_ITEM+="${item_display}\x1b[$((SCREEN_SIZE[1] - 2))G"
-				TO_RENDER_ITEM+="[${PUR}*${FONT}]"
-			else
-				TO_RENDER_ITEM+="${item_display}\x1b[$((SCREEN_SIZE[1] - 2))G"
-				TO_RENDER_ITEM+="[${ORA}*${FONT}]"
-			fi
-		;;
-		"var:"*)
-			case "${item_type:4}" in
-				"bool")
-					if [ "${item_value}" == "true" ]; then
-						TO_RENDER_ITEM+="${item_display}\x1b[$((SCREEN_SIZE[1] - 2))G"
-						TO_RENDER_ITEM+="[${GRE}+${FONT}]"
-					else
-						TO_RENDER_ITEM+="${item_display}\x1b[$((SCREEN_SIZE[1] - 2))G"
-						TO_RENDER_ITEM+="[${RED}-${FONT}]"
-					fi
-				;;
-				"string")
-					TO_RENDER_ITEM+="${item_display}\x1b[$((SCREEN_SIZE[1] - ${#item_value} - 1))G"
-					TO_RENDER_ITEM+="[${CYA}${item_value}${FONT}]"
-				;;
-				"int")
-					TO_RENDER_ITEM+="${item_display}\x1b[$((SCREEN_SIZE[1] - ${#item_value} - 1))G"
-					TO_RENDER_ITEM+="[${GRE}${item_value}${FONT}]"
-				;;
-				"path")
-					local	color="${PUR}"
-
-					# TODO SHOTEN THE PATH WITH PWD
-					# item_value=$(shorten_path ${item_value})
-					if [ -d "${item_value}" ]; then
-						color="${BLU}"
-						item_value="${item_value}/"
-					elif [ -f "${item_value}" ]; then
-						color="${WHI}"
-						if [ -x "${item_value}" ]; then
-							color="${GRE}"
-						fi
-					elif [ -e "${item_value}" ];then
-						color="${PUR}"
-					else
-						color="${ORA}"
-					fi
-
-					TO_RENDER_ITEM+="${item_display}\x1b[$((SCREEN_SIZE[1] - ${#item_value} - 1))G"
-					TO_RENDER_ITEM+="[${color}${item_value}${FONT}]"
-				;;
-				*) TO_RENDER_ITEM+="${item_display}: ${item_type}" ;;
-			esac
-		;;
-		*) TO_RENDER_ITEM+="${item_display}: ${item_type}";;
-	esac
-	TO_RENDER_ITEM+="${SELECTED_FMT_END}\n"
-}
-
 function	menu_action()
 {
 	local	item_name="${MENU_ID_ITEM_ORDER[$((${MENU_ID_SEL_ID} - 1))]}"
-	local	item_type=${MENU_ID_ITEM[${item_name}]}
+	local	item_type="${MENU_ID_ITEM[${item_name}]}"
 	local	item_value="${!item_name:-}"
 
 	case "${item_type}" in
@@ -126,13 +46,17 @@ function	menu_action()
 				"int")
 					MENU_INPUT="${item_value}"
 					menu_input "Integer" "int"
-					eval ${item_name}=${MENU_INPUT}
+					if [ "${MENU_INPUT_DONT_SAVE}" == "0" ];then
+						eval ${item_name}=${MENU_INPUT}
+					fi
 					MENU_INPUT=""
 				;;
 				"path")
 					MENU_INPUT="${item_value}"
 					menu_input "Path"
-					eval ${item_name}=${MENU_INPUT}
+					if [ "${MENU_INPUT_DONT_SAVE}" == "0" ];then
+						eval ${item_name}=${MENU_INPUT}
+					fi
 					MENU_INPUT=""
 				;;
 				*) ;;
@@ -151,7 +75,13 @@ function	menu_action_module()
 	local	var_loaded="MODULES_LOADED_${current_module}"
 	local	var_loaded_value="${!var_loaded}"
 
-	if [ "${var_loaded_value}" == "" ]; then
+	if [ "${var_loaded_value}" == "1" ]; then
+		if [ "$(type -t ${menu_func})" == "function" ]; then
+			${menu_func}
+		else
+			eval ${var_loaded}="2"
+		fi
+	else
 		# Check if already sourced
 		if [ "${var_loaded_value}" != "1" ]; then
 			# Source module config file
@@ -181,23 +111,108 @@ function	menu_fill_items()
 		else
 			TO_RENDER_ITEM+="├"
 		fi
+		local	end=""
 		if [ "${i}" == "${MENU_ID_SEL_ID}" ]; then
 			TO_RENDER_ITEM+="${SELECTED_FMT_BEG}"
+			end="${SELECTED_FMT_END}"
 		fi
 		menu_fill_item "$((i - 1))"
-		((i++))
+		TO_RENDER_ITEM+="${end}"
+		((i++)) || true
 	done
+}
+
+function	menu_fill_item()
+{
+	local	item_id="${1:-1}"
+	local	item_display="${MENU_ID_ITEM_NAME[${item_id}]}"
+	local	item_name="${MENU_ID_ITEM_ORDER[${item_id}]}"
+	local	item_type="${MENU_ID_ITEM[${item_name}]:-}"
+
+	if [[ "${item_type}" =~ ^var:.* ]]; then
+		local	item_value="${!item_name:-}"
+	fi
+
+	case "${item_type}" in
+		"module")
+			declare -n var_loaded="MODULES_LOADED_${item_name}"
+			if [ "${var_loaded:-}" == "1" ]; then
+				TO_RENDER_ITEM+="${item_display}\x1b[$((SCREEN_SIZE[1] - 2))G"
+				TO_RENDER_ITEM+="[${BLU}+${FONT}]"
+			elif [ "${var_loaded:-}" == "2" ]; then
+				TO_RENDER_ITEM+="${item_display}\x1b[$((SCREEN_SIZE[1] - 2))G"
+				TO_RENDER_ITEM+="[${RED}-${FONT}]"
+			else
+				TO_RENDER_ITEM+="${item_display}\x1b[$((SCREEN_SIZE[1] - 2))G"
+				TO_RENDER_ITEM+="[${ORA}*${FONT}]"
+			fi
+		;;
+		"function")
+			if [ "$(type -t ${item_name})" == "function" ]; then
+				TO_RENDER_ITEM+="${item_display}\x1b[$((SCREEN_SIZE[1] - 2))G"
+				TO_RENDER_ITEM+="[${GRE}*${FONT}]"
+			else
+				TO_RENDER_ITEM+="${item_display}\x1b[$((SCREEN_SIZE[1] - 2))G"
+				TO_RENDER_ITEM+="[${RED}-${FONT}]"
+			fi
+		;;
+		"var:"*)
+			case "${item_type:4}" in
+				"bool")
+					if [ "${item_value}" == "true" ]; then
+						TO_RENDER_ITEM+="${item_display}\x1b[$((SCREEN_SIZE[1] - 2))G"
+						TO_RENDER_ITEM+="[${GRE}+${FONT}]"
+					else
+						TO_RENDER_ITEM+="${item_display}\x1b[$((SCREEN_SIZE[1] - 2))G"
+						TO_RENDER_ITEM+="[${RED}-${FONT}]"
+					fi
+				;;
+				"string")
+					TO_RENDER_ITEM+="${item_display}\x1b[$((SCREEN_SIZE[1] - ${#item_value} - 1))G"
+					TO_RENDER_ITEM+="[${CYA}${item_value}${FONT}]"
+				;;
+				"int")
+					TO_RENDER_ITEM+="${item_display}\x1b[$((SCREEN_SIZE[1] - ${#item_value} - 1))G"
+					TO_RENDER_ITEM+="[${GRE}${item_value}${FONT}]"
+				;;
+				"path")
+					local	color="${ORA}"
+
+					# TODO SHOTEN THE PATH WITH PWD
+					# item_value=$(shorten_path ${item_value})
+					if [ -d "${item_value}" ]; then
+						color="${BLU}"
+						item_value="${item_value}"
+					elif [ -f "${item_value}" ]; then
+						color="${WHI}"
+						if [ -x "${item_value}" ]; then
+							color="${GRE}"
+						fi
+					elif [ -e "${item_value}" ];then
+						color="${PUR}"
+					fi
+
+					TO_RENDER_ITEM+="${item_display}\x1b[$((SCREEN_SIZE[1] - ${#item_value} - 1))G"
+					TO_RENDER_ITEM+="[${color}${item_value}${FONT}]"
+				;;
+				*) TO_RENDER_ITEM+="${item_display}\x1b[$((SCREEN_SIZE[1] - 2))G[${RED}?${FONT}]";;
+			esac
+		;;
+		*) TO_RENDER_ITEM+="${item_display}\x1b[$((SCREEN_SIZE[1] - 2))G[${RED}?${FONT}]";;
+	esac
 }
 
 function	menu_render()
 {
-	declare -gn MENU_ID_TITLE="MENU_${MENU_ID}_TITLE"
-	declare -gn MENU_ID_PROMPT="MENU_${MENU_ID}_PROMPT"
-	declare -gn MENU_ID_ITEM_ORDER=MENU_${MENU_ID}_ITEM_ORDER
-	declare -gn MENU_ID_ITEM_NAME=MENU_${MENU_ID}_ITEM_NAME
-	declare -gn MENU_ID_ITEM=MENU_${MENU_ID}_ITEM
-	declare -gn MENU_ID_SEL_ID=MENU_${MENU_ID}_SEL_ID
-	declare -gn RUNNING_ID="RUNNING_${MENU_ID}"
+	local	menu_id="${MENU_ID[-1]}"
+
+	declare -gn MENU_ID_TITLE="MENU_${menu_id}_TITLE"
+	declare -gn MENU_ID_PROMPT="MENU_${menu_id}_PROMPT"
+	declare -gn MENU_ID_ITEM_ORDER="MENU_${menu_id}_ITEM_ORDER"
+	declare -gn MENU_ID_ITEM_NAME="MENU_${menu_id}_ITEM_NAME"
+	declare -gn MENU_ID_ITEM="MENU_${menu_id}_ITEM"
+	declare -gn MENU_ID_SEL_ID="MENU_${menu_id}_SEL_ID"
+	declare -gn RUNNING_ID="RUNNING_${menu_id}"
 
 	update_screen_size
 	printf "${CLR_SCR}"
@@ -217,11 +232,10 @@ function	key_press_main()
 	# Read one char + additional for special key
 	unset P1 P2 KEY_PRESS
 	read -rs -N1 P1
-	read -rs -N4 -t 0.001 P2
+	read -rs -N4 -t 0.001 P2 || true
 	local	mode="$P1$P2"
 
 	KEY_PRESS="0x$(printf '%b' "${mode}" | conv_hex)"
-	printf "mode ${KS["W"]}\n"
 	case "${mode}" in
 		${KS["ARROW_UP"]})			KEY_PRESS="UP" ;;
 		${KS["W"]})					KEY_PRESS="UP" ;;
@@ -251,31 +265,35 @@ function	key_press_main()
 
 function	key_post_press_main()
 {
-	CURRENT_ITEM="${MODULE[$((${MENU_ID_SEL_ID} - 1))]}"
 	if [ "${KEY_PRESS}" == "UP" -a "${MENU_ID_SEL_ID}" -gt 1 ]; then
-		((MENU_ID_SEL_ID--))
+		((MENU_ID_SEL_ID--)) || true
 	elif [ "${KEY_PRESS}" == "DOWN" -a "${MENU_ID_SEL_ID}" -lt "${#MENU_ID_ITEM_ORDER[@]}" ]; then
-		((MENU_ID_SEL_ID++))
+		((MENU_ID_SEL_ID++)) || true
 	elif [ "${KEY_PRESS}" == "RIGHT" ]; then
 		key_develop
 	elif [ "${KEY_PRESS}" == "ENTER" ]; then
 		menu_action
 	elif [ "${KEY_PRESS}" == "EXIT" ]; then
 		RUNNING_ID=0
+	elif [ "${KEY_PRESS}" == "F1" ]; then
+		test_menu
 	fi
 }
 
 function	menu_run_loop()
 {
-	MENU_ID_SAVE="${MENU_ID}"
-	MENU_ID=${1?}
-	declare -g RUNNING_${MENU_ID}=1
-	declare -r RUNNING_RUN_LOOP=RUNNING_${MENU_ID}
+	local	menu_id="${1?}"
+	MENU_ID+=("${menu_id}")
+	local	menu_id="${MENU_ID[-1]}"
+	declare -g RUNNING_${MENU_ID[-1]}=1
+	declare -r RUNNING_RUN_LOOP=RUNNING_${MENU_ID[-1]}
 
-	while [ "${!RUNNING_RUN_LOOP}" == "1" ]; do
+	printf "MENU_RUN_LOOP ID ${MENU_ID[-1]}\n"
+	printf "MENU_ID ${MENU_ID[@]}\n"
+	while [ "${!RUNNING_RUN_LOOP}" == "1" ] && [ "${CTRL_C}" == "0" ]; do
 		menu_render
 		key_press_main
 		key_post_press_main
 	done
-	MENU_ID="${MENU_ID_SAVE}"
+	MENU_ID=(${MENU_ID[@]/${MENU_ID[-1]}})
 }

@@ -1,6 +1,6 @@
 #!/bin/bash
 
-if [ -z ${IMPORTED_TUI} ]; then
+if [ -z "${IMPORTED_TUI:-}" ]; then
 declare -gr IMPORTED_TUI=1
 
 # VARIABLES
@@ -9,7 +9,9 @@ MAIN_TITLE="TITLE v1.0.0"
 FONT="${WHI}"
 
 SELECTED_FMT_BEG="${UND}"
-SELECTED_FMT_END="\x1b[0m"
+UND_RST="\x1b[24m"
+REV_RST="\x1b[27m"
+SELECTED_FMT_END="${UND_RST}"
 
 CURRENT_MODULE=""
 
@@ -66,10 +68,12 @@ declare -gA KS=(
 	["F12"]=$'\x1b\x5b\x32\x34\x7e'
 )
 
+SIZE_BOX=60
+
 source ${DIR_BASE}/src/utils
 source ${DIR_BASE}/src/menu
-source ${DIR_BASE}/src/item
 source ${DIR_BASE}/src/input
 source ${DIR_BASE}/src/escape
+source ${DIR_BASE}/src/selection
 
 fi

@@ -20,28 +20,47 @@ function	install::font()
 	fi
 }
 
-## BINDED FUNCTION
+function	menu_fonts_choose_fonts()
+{
+	SELECTION_ITEM_ORDER=(
+		"firacode-nerd"
+		"fontawesome"
+	)
+	SELECTION_SELECTED=("${FONTS_SELECTED[@]}")
+	declare -A SELECTION_ITEM=(
+		["firacode-nerd"]="Mono spaced font with ligature support"
+		["fontawesome"]="Iconic font and CSS toolkit"
+	)
+	menu_selection "Select which fonts you want"
 
+	printf "${CLR_SCR}"
+
+	for item in ${SELECTION_SELECTED[@]}; do
+		echo "Selected: ${item}"
+	done
+
+	sleep 2
+}
+
+## BINDED FUNCTION
 function	pre::install::fonts()
 {
-	case ${OS_ID} in
-		termux) 			DIR_FONT="${HOME}/.termux"					;;
-		ubuntu|kali|debian|arch)	DIR_FONT="${HOME}/.local/share/fonts"	;;
+	case "${OS_ID}" in
+		termux) 					DIR_FONT="${HOME}/.termux" ;;
+		ubuntu|kali|debian|arch)	DIR_FONT="${HOME}/.local/share/fonts" ;;
 	esac
 	if [ "$(is::installed unzip)" == 0 ]; then
 		NO_UNZIP=1
 		log::warn "unzip isn't installed, installing it"
 		case ${OD_ID} in
 			ubuntu|kali|debian)
-				sudo apt install -Y unzip
+				sudo apt install -y unzip
 			;;
 			"arch")
 				sudo pacman -Syu --noconfirm unzip
 			;;
 		esac
-		if [ ${?} == 0 ]; then
-			NO_UNZIP=0;
-		fi
+		[ ${?} == 0 ] && NO_UNZIP=0
 	fi
 
 	if [ "${NO_UNZIP}" == "1" ]; then
@@ -77,6 +96,11 @@ function	post::install::fonts()
 	fi
 	unset DIR_FONT
 	unset NO_UNZIP
+}
+
+function	menu::fonts()
+{
+	menu_run_loop "FONTS";
 }
 
 # Start

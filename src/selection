@@ -1,0 +1,114 @@
+#!/bin/bash
+
+# SELECTION
+function	selection_render()
+{
+	local	selection_title="${1:-}"
+	local	selection_len="${2:-${SIZE_BOX}}"
+	local	middle_s_l="$((${SCREEN_SIZE[0]} / 2))"
+	local	middle_s_c="$((${SCREEN_SIZE[1]} / 2))"
+	local	middle_input="$((${selection_len} / 2))"
+
+	local	input_beg_col="$((middle_s_c - middle_input))"
+
+	# CANCEL CHANGE
+	local	beg_title="$(((selection_len - ${#selection_title}) / 2))"
+	local	padd_str=""
+	if [ "$(((selection_len - ${#selection_title}) % 2))" == "1" ]; then
+		padd_str=" "
+	fi
+	local	top_line="$((middle_s_l - ${#SELECTION_ITEM_ORDER[@]} / 2))"
+	TO_RENDER_SELECTION+="${FONT}\x1b[$((top_line - 1));${input_beg_col}H"
+	TO_RENDER_SELECTION+="${BO_UL}$(rep $((beg_title - 2)) ${BO_HO})"
+	TO_RENDER_SELECTION+=" ${selection_title} ${padd_str}$(rep $((beg_title - 2)) ${BO_HO})${BO_UR}"
+
+	# CHOICE
+	local	i=0
+	for item in ${SELECTION_ITEM_ORDER[@]}; do
+		TO_RENDER_SELECTION+="\x1b[$((top_line + i));${input_beg_col}H"
+		TO_RENDER_SELECTION+="${BO_VE} - "
+		((i++)) || true
+		local	beg_sel=""
+		local	end_sel=""
+
+		if [ "${i}" == "${SELECTION_ID}" ]; then
+			beg_sel="${UND}"
+			end_sel="${UND_RST}"
+		fi
+		TO_RENDER_SELECTION+="${beg_sel}["
+		if [[ ${SELECTION_SELECTED[@]} =~ ${item} ]]; then
+			TO_RENDER_SELECTION+="${REV} ${REV_RST}"
+		else
+			TO_RENDER_SELECTION+=" "
+		fi
+		TO_RENDER_SELECTION+="]${end_sel} ${SELECTION_ITEM[${item}]}"
+		TO_RENDER_SELECTION+="$(rep $((${selection_len} - ${#SELECTION_ITEM[${item}]} - 9)) " ")${BO_VE}"
+	done
+
+	TO_RENDER_SELECTION+="\x1b[$((top_line + i));${input_beg_col}H"
+	TO_RENDER_SELECTION+="${BO_LL}$(rep $((${selection_len} - 2)) ${BO_HO})${BO_LR}"
+
+	printf "%b" "${TO_RENDER_SELECTION}"
+}
+
+# https://abs.traduc.org/abs-fr/ch05s02.html (chapter 5.3)
+function	key_press_selection()
+{
+	# Read one char + additional for special key
+	unset P1 P2
+	read -rs -N1 P1
+	read -rs -N4 -t 0.001 P2 || true
+	local	mode="$P1$P2"
+
+	case "${mode}" in
+		${KS["ARROW_DOWN"]})
+			if [ ${SELECTION_ID} -lt ${#SELECTION_ITEM_ORDER[@]} ]; then
+				((SELECTION_ID++))
+			else
+				SELECTION_ID=1
+			fi
+		;;
+		${KS["ARROW_UP"]})
+			if [ ${SELECTION_ID} -gt 1 ]; then
+				((SELECTION_ID--))
+			else
+				SELECTION_ID="${#SELECTION_ITEM_ORDER[@]}"
+			fi
+		;;
+		${KS["SPACE"]}|${KS["ENTER"]})
+			local	i=0
+			for item in ${SELECTION_ITEM_ORDER[@]}; do
+				((i++)) || true
+				if [ "${SELECTION_ID}" == "${i}" ]; then
+					if ! [[ ${SELECTION_SELECTED[@]} =~ ${item} ]]; then
+						SELECTION_SELECTED=("${SELECTION_SELECTED[@]}" "${item}")
+					else
+						SELECTION_SELECTED=("${SELECTION_SELECTED[@]/${item}}")
+					fi
+				fi
+			done
+		;;
+		${KS["ESC"]})
+			menu_escape "Save change ?"
+			[ "${ESC_SEL_ID}" == 2 ] && SELECTION_DONT_SAVE="1" || true
+			[ "${ESC_SEL_ID}" != 3 ] && SELECTION_END="1" || true
+		;;
+	esac
+}
+
+function	menu_selection()
+{
+	local	selection_title="${1:-}"
+
+	update_screen_size
+	SELECTION_ID="1"
+	SELECTION_SELECTED=("${SELECTION_SELECTED[@]:-}")
+	SELECTION_DONT_SAVE="0"
+	SELECTION_END="0"
+	selection_render "${selection_title}"
+
+	while [ "${SELECTION_END}" != "1" ] && [ "${CTRL_C}" == "0" ]; do
+		key_press_selection
+		selection_render "${selection_title}"
+	done
+}
